@@ -51,7 +51,20 @@ If you do not have any certificate from Let`s Encrypt, then you need to do the f
 
 ## Installation with having a certificate
 
-1. You don't have to do anything. Just go on to the next chapter.
+1. Just put your certificate and private key in
+
+   ```
+   /data/certbot/certs/live/www.raiun.de/
+   ```
+
+2. Make sure you set the proper permissions for security reasons
+
+   ```
+   chown root:root /data/certbot/certs/ -R
+   chmod 640 /data/certbot/certs/ -R
+   ```
+
+3. Continue with next chapter.
 
 ## Configure your web app
 
