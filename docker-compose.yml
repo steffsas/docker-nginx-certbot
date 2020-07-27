@@ -76,7 +76,7 @@ services:
                 entrypoint:
                         - /usr/local/bin/entrypoint.sh
                 #
-                # GOT CERTIFICATE FOR FIRST TIME
+                # GET CERTIFICATE FOR FIRST TIME
                 # Choose this command if you want to get your certificate for the first time.
                 # Define Args via .env file.
                 # command: certonly --webroot -w /var/www/certbot/ --preferred-challenges http --agree-tos -m ${EMAIL} ${DOMAIN}
