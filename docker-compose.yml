@@ -1,0 +1,87 @@
+version: '3'
+services:
+        # This service provides the actual service via nginx.
+        web-service:
+                image: nginx:alpine
+                container_name: web-service
+                restart: always
+                environment:
+                        - RELOAD_NGINX_FILE=web_service
+                volumes:
+                        - ./data/nginx/scripts/:/scripts/
+                        - ./data/certbot/reload/:/etc/reload/
+                        - ./conf/web/nginx.conf:/etc/nginx/nginx.conf:ro        # nginx configuration
+                        - ./conf/ssl/:/etc/nginx/ssl/:ro                        # ssl configuration
+                        - ./dist/:/usr/share/nginx/html/:ro                     # files for service, like spa vue etc.
+                        - ./data/certbot/certs/:/etc/nginx/certs/:ro            # certificates for https
+                networks:
+                        - web-network                                           # network, s.t. only proxy is available
+                command:
+                        - /scripts/start.sh
+
+        # This proxy service takes all incomming requests and pass it to the right service.
+        # Have a look at nginx.conf for further information how incomming requests are routed.
+        proxy-service:
+                image: nginx:alpine
+                container_name: proxy-service
+                restart: always
+                ports:
+                        - "80:80"
+                        - "443:443"
+                environment:
+                        - RELOAD_NGINX_FILE=proxy_service
+                volumes:
+                        - ./data/certbot/reload/:/etc/reload/                   # provides information if certificate changed
+                        - ./data/nginx/scripts/:/scripts/                       # provides script for looking at certificate changes and restarting nginx
+                        - ./conf/proxy/nginx.conf:/etc/nginx/nginx.conf:ro      # nginx configuration
+                        - ./conf/ssl/:/etc/nginx/ssl/:ro                        # ssl configuration
+                        - ./data/certbot/certs/:/etc/nginx/certs/:ro            # certificates for https
+                networks:
+                        - web-network                                           # network for web-service
+                        - certbot-network                                       # network for certbot and certbot nginx
+                command: 
+                        - /scripts/start.sh
+
+
+        # This web service makes the acme-challenge files accessible via http
+        certbot-web-service:
+                image: nginx:alpine
+                container_name: certbot-web-service
+                volumes:
+                        - ./conf/certbot-web/nginx.conf:/etc/nginx/nginx.conf:ro        # nginx configuration
+                        - ./data/certbot/www:/usr/share/nginx/html                      # folder for acme-challenge files
+                networks:
+                        - certbot-network                                               # certbot network
+
+        # This certbot service provides the functionality to renew or get new certificate(s)
+        certbot-service:
+                image: certbot/certbot:latest
+                container_name: certbot-service
+                environment:
+                        - RELOAD_NGINX_FILES=proxy_service web_service
+                volumes:
+                        - ./data/certbot/reload/:/etc/reload/           # files that triggers reload nginx
+                        - ./data/certbot/scripts/entrypoint.sh:/usr/local/bin/entrypoint.sh         # scripts for example for entrypoint
+                        - ./data/certbot/certs/:/etc/letsencrypt/       # certbot will save certificates here
+                        - ./data/certbot/www/:/var/www/certbot/         # certbot will save acme-challenge files here
+                # TEST RENEWAL
+                # Choose this command if you want to try a certificate renewal
+                # Make sure you already gained a certificate!
+                # command: renew --dry-run --noninteractive --force-renewal --no-random-sleep-on-renew
+                # 
+                # PERIODICALLY RENEWAL
+                # Choose this command if you want to check for renewal you certificates, if you are close
+                # to the expired date, certbot will automatically try to get a new certificate.
+                # Make sure you already gained a certificate!
+                entrypoint:
+                        - /usr/local/bin/entrypoint.sh
+                #
+                # GOT CERTIFICATE FOR FIRST TIME
+                # Choose this command if you want to get your certificate for the first time.
+                # Define Args via .env file.
+                # command: certonly --webroot -w /var/www/certbot/ --preferred-challenges http --agree-tos -m ${EMAIL} ${DOMAIN}
+                networks:
+                        - certbot-network
+networks:
+        web-network:
+        certbot-network:
